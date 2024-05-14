@@ -1,0 +1,174 @@
+#include <iostream>
+#include <vector>
+#include <cstdlib>
+#include <ctime>
+#include <algorithm>
+
+using namespace std;
+
+// Function to print the cake configuration
+void printCake(const vector<vector<vector<int>>>& cake) {
+    for (int i = 0; i < cake.size(); ++i) {
+        for (int j = 0; j < cake[i].size(); ++j) {
+            if (!cake[i][j].empty()) { // Only print if the plate is not empty
+                cout << "[";
+                for (int k = 0; k < cake[i][j].size(); ++k) {
+                    cout << cake[i][j][k] << " ";
+                }
+                cout << "] ";
+            }
+            else {
+                cout << "[ ] "; // Print empty plate
+            }
+        }
+        cout << endl;
+    }
+    cout << endl;
+}
+
+// Function to initialize cake with empty plates
+void initializeCake(vector<vector<vector<int>>>& cake) {
+    for (int i = 0; i < cake.size(); ++i) {
+        for (int j = 0; j < cake[i].size(); ++j) {
+            // Make each plate empty (no numbers inside)
+            cake[i][j].clear();
+        }
+    }
+}
+
+// Function to perform swap of identical numbers near the new plate
+void performSwap(vector<vector<vector<int>>>& cake, int row, int col) {
+    vector<int>& newPlate = cake[row][col]; // Reference to the new plate that was just inserted
+    vector<int> toMove; // Vector to store elements to move to the new plate
+
+    auto moveFromNeighbor = [&](vector<int>& neighborPlate) {
+        if (!neighborPlate.empty()) {
+            for (auto it = neighborPlate.begin(); it != neighborPlate.end();) {
+                if (find(newPlate.begin(), newPlate.end(), *it) != newPlate.end()) {
+                    toMove.push_back(*it);
+                    it = neighborPlate.erase(it);
+                }
+                else {
+                    ++it;
+                }
+            }
+        }
+        };
+
+    // Check and move from right neighbor
+    if (col + 1 < cake[row].size()) {
+        moveFromNeighbor(cake[row][col + 1]);
+    }
+    // Check and move from left neighbor
+    if (col - 1 >= 0) {
+        moveFromNeighbor(cake[row][col - 1]);
+    }
+    // Check and move from top neighbor
+    if (row - 1 >= 0) {
+        moveFromNeighbor(cake[row - 1][col]);
+    }
+    // Check and move from bottom neighbor
+    if (row + 1 < cake.size()) {
+        moveFromNeighbor(cake[row + 1][col]);
+    }
+
+    // Add all toMove elements to newPlate
+    newPlate.insert(newPlate.end(), toMove.begin(), toMove.end());
+
+    // If newPlate has more than 6 elements, resize to 6
+    if (newPlate.size() > 6) {
+        newPlate.resize(6);
+    }
+
+    // If newPlate has exactly 6 identical numbers, empty it and add one to the previous plate
+    if (newPlate.size() == 6) {
+        int targetValue = newPlate[0];
+        bool isFull = all_of(newPlate.begin(), newPlate.end(), [targetValue](int val) { return val == targetValue; });
+
+        if (isFull) {
+            newPlate.clear();
+            if (col - 1 >= 0) {
+                cake[row][col - 1].push_back(targetValue);
+            }
+            else if (row - 1 >= 0) {
+                cake[row - 1][col].push_back(targetValue);
+            }
+        }
+    }
+}
+
+// Function to generate a random plate with numbers between 1 to 6
+vector<int> generateRandomPlate() {
+    vector<int> plate;
+    int numElements = rand() % 5 + 1; // Random number of elements (1-5)
+
+    for (int k = 0; k < numElements; ++k) {
+        int newNum = rand() % 6 + 1; // Random color value (1-6)
+
+        // Insert the new number in a way that keeps identical numbers together
+        bool inserted = false;
+        for (auto it = plate.begin(); it != plate.end(); ++it) {
+            if (*it == newNum) {
+                plate.insert(it, newNum);
+                inserted = true;
+                break;
+            }
+        }
+        if (!inserted) {
+            plate.push_back(newNum);
+        }
+    }
+
+    return plate;
+}
+
+int main() {
+    vector<vector<vector<int>>> cake(3, vector<vector<int>>(3));
+
+    initializeCake(cake);
+
+    srand(time(0));
+    while (true) {
+        cout << "Choose plates to insert into the cake (colors represented by numbers 1-6):" << endl;
+
+        int row, col;
+        vector<int> newPlate;
+
+        // Generate a new plate
+        newPlate = generateRandomPlate();
+
+        // Display the new plate
+        cout << "Plate: ";
+        for (int k = 0; k < newPlate.size(); ++k) {
+            cout << newPlate[k] << " ";
+        }
+        cout << endl;
+
+        cout << "Enter row and column (0-2) to insert this plate: ";
+        cin >> row >> col;
+
+        if (row >= 0 && row < cake.size() && col >= 0 && col < cake[0].size()) {
+            // Check if the selected plate already has 6 elements
+            if (cake[row][col].size() + newPlate.size() <= 6) {
+                // Add elements from new plate only if it does not exceed 6 elements
+                cake[row][col].insert(cake[row][col].end(), newPlate.begin(), newPlate.end());
+
+                cout << "New plate inserted at position (" << row << ", " << col << ")" << endl;
+
+                // Perform swap with neighboring plates
+                performSwap(cake, row, col);
+
+                cout << "Updated Cake Configuration:" << endl;
+                printCake(cake);
+            }
+            else {
+                cout << "The selected plate already has 6 elements. You cannot add more." << endl;
+            }
+        }
+        else {
+            cout << "Invalid position. Please enter a valid row and column (0-2)." << endl;
+        }
+    }
+
+    return 0;
+}
