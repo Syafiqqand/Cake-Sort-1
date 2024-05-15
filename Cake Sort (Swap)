@@ -6,94 +6,103 @@
 
 using namespace std;
 
+// Struct to represent a plate
+struct Plate {
+    vector<int> cakes;
+
+    // Function to check if the plate is full
+    bool isFull() const {
+        return cakes.size() >= 6;
+    }
+
+    // Function to check if this plate and another plate have similar cake configuration
+    bool haveSimilarCake(const Plate& other) const {
+        return cakes == other.cakes;
+    }
+
+    // Function to swap cake configuration with another plate
+    void switchPlates(Plate& other) {
+        cakes.swap(other.cakes);
+    }
+};
+
 // Function to print the cake configuration
-void printCake(const vector<vector<vector<int>>>& cake) {
-    for (int i = 0; i < cake.size(); ++i) {
-        for (int j = 0; j < cake[i].size(); ++j) {
-            if (!cake[i][j].empty()) { // Only print if the plate is not empty
-                cout << "[";
-                for (int k = 0; k < cake[i][j].size(); ++k) {
-                    cout << cake[i][j][k] << " ";
-                }
-                cout << "] ";
+void printCake(const vector<Plate>& table) {
+    for (size_t i = 0; i < table.size(); ++i) {
+        if (!table[i].cakes.empty()) { // Only print if the plate is not empty
+            cout << "[";
+            for (int j = 0; j < table[i].cakes.size(); ++j) {
+                cout << table[i].cakes[j] << " ";
             }
-            else {
-                cout << "[ ] "; // Print empty plate
-            }
+            cout << "] ";
+        } else {
+            cout << "[ ] "; // Print empty plate
         }
-        cout << endl;
+        if ((i + 1) % 3 == 0)
+            cout << endl;
     }
     cout << endl;
 }
 
 // Function to initialize cake with empty plates
-void initializeCake(vector<vector<vector<int>>>& cake) {
-    for (int i = 0; i < cake.size(); ++i) {
-        for (int j = 0; j < cake[i].size(); ++j) {
-            // Make each plate empty (no numbers inside)
-            cake[i][j].clear();
-        }
+void initializeCake(vector<Plate>& table) {
+    for (size_t i = 0; i < table.size(); ++i) {
+        // Make each plate empty (no numbers inside)
+        table[i].cakes.clear();
     }
 }
 
 // Function to perform swap of identical numbers near the new plate
-void performSwap(vector<vector<vector<int>>>& cake, int row, int col) {
-    vector<int>& newPlate = cake[row][col]; // Reference to the new plate that was just inserted
+void performSwap(vector<Plate>& table, size_t index) {
+    Plate& newPlate = table[index]; // Reference to the new plate that was just inserted
+
+    // Check if there are 6 identical numbers in the new plate
+    if (newPlate.isFull() && all_of(newPlate.cakes.begin(), newPlate.cakes.end(), [&](int val) { return val == newPlate.cakes[0]; })) {
+        cout << "Congratulations! You made a cake with 6 identical numbers at position " << index << "." << endl;
+        return;
+    }
+
     vector<int> toMove; // Vector to store elements to move to the new plate
 
-    auto moveFromNeighbor = [&](vector<int>& neighborPlate) {
-        if (!neighborPlate.empty()) {
-            for (auto it = neighborPlate.begin(); it != neighborPlate.end();) {
-                if (find(newPlate.begin(), newPlate.end(), *it) != newPlate.end()) {
+    auto moveFromNeighbor = [&](Plate& neighborPlate) {
+        if (!neighborPlate.cakes.empty()) {
+            for (auto it = neighborPlate.cakes.begin(); it != neighborPlate.cakes.end();) {
+                if (find(newPlate.cakes.begin(), newPlate.cakes.end(), *it) != newPlate.cakes.end()) {
                     toMove.push_back(*it);
-                    it = neighborPlate.erase(it);
-                }
-                else {
+                    it = neighborPlate.cakes.erase(it);
+                } else {
                     ++it;
                 }
             }
         }
-        };
+    };
+
+    size_t row = index / 3;
+    size_t col = index % 3;
 
     // Check and move from right neighbor
-    if (col + 1 < cake[row].size()) {
-        moveFromNeighbor(cake[row][col + 1]);
+    if (col + 1 < 3) {
+        moveFromNeighbor(table[index + 1]);
     }
     // Check and move from left neighbor
-    if (col - 1 >= 0) {
-        moveFromNeighbor(cake[row][col - 1]);
+    if (col > 0) {
+        moveFromNeighbor(table[index - 1]);
     }
     // Check and move from top neighbor
-    if (row - 1 >= 0) {
-        moveFromNeighbor(cake[row - 1][col]);
+    if (row > 0) {
+        moveFromNeighbor(table[index - 3]);
     }
     // Check and move from bottom neighbor
-    if (row + 1 < cake.size()) {
-        moveFromNeighbor(cake[row + 1][col]);
+    if (row + 1 < 3) {
+        moveFromNeighbor(table[index + 3]);
     }
 
     // Add all toMove elements to newPlate
-    newPlate.insert(newPlate.end(), toMove.begin(), toMove.end());
+    newPlate.cakes.insert(newPlate.cakes.end(), toMove.begin(), toMove.end());
 
     // If newPlate has more than 6 elements, resize to 6
-    if (newPlate.size() > 6) {
-        newPlate.resize(6);
-    }
-
-    // If newPlate has exactly 6 identical numbers, empty it and add one to the previous plate
-    if (newPlate.size() == 6) {
-        int targetValue = newPlate[0];
-        bool isFull = all_of(newPlate.begin(), newPlate.end(), [targetValue](int val) { return val == targetValue; });
-
-        if (isFull) {
-            newPlate.clear();
-            if (col - 1 >= 0) {
-                cake[row][col - 1].push_back(targetValue);
-            }
-            else if (row - 1 >= 0) {
-                cake[row - 1][col].push_back(targetValue);
-            }
-        }
+    if (newPlate.cakes.size() > 6) {
+        newPlate.cakes.resize(6);
     }
 }
 
@@ -122,16 +131,25 @@ vector<int> generateRandomPlate() {
     return plate;
 }
 
-int main() {
-    vector<vector<vector<int>>> cake(3, vector<vector<int>>(3));
+bool isTableFull(const vector<Plate>& table) {
+    for (size_t i = 0; i < table.size(); ++i) {
+        if (!table[i].isFull()) {
+            return false;
+        }
+    }
+    return true;
+}
 
-    initializeCake(cake);
+int main() {
+    vector<Plate> table(9);
+
+    initializeCake(table);
 
     srand(time(0));
     while (true) {
         cout << "Choose plates to insert into the cake (colors represented by numbers 1-6):" << endl;
 
-        int row, col;
+        size_t index;
         vector<int> newPlate;
 
         // Generate a new plate
@@ -144,31 +162,35 @@ int main() {
         }
         cout << endl;
 
-        cout << "Enter row and column (0-2) to insert this plate: ";
-        cin >> row >> col;
+        cout << "Enter index (0-8) to insert this plate: ";
+        cin >> index;
 
-        if (row >= 0 && row < cake.size() && col >= 0 && col < cake[0].size()) {
+        if (index < 9) {
             // Check if the selected plate already has 6 elements
-            if (cake[row][col].size() + newPlate.size() <= 6) {
+            if (!table[index].isFull()) {
                 // Add elements from new plate only if it does not exceed 6 elements
-                cake[row][col].insert(cake[row][col].end(), newPlate.begin(), newPlate.end());
+                table[index].cakes.insert(table[index].cakes.end(), newPlate.begin(), newPlate.end());
 
-                cout << "New plate inserted at position (" << row << ", " << col << ")" << endl;
+                cout << "New plate inserted at position " << index << endl;
 
                 // Perform swap with neighboring plates
-                performSwap(cake, row, col);
+                performSwap(table, index);
 
                 cout << "Updated Cake Configuration:" << endl;
-                printCake(cake);
-            }
-            else {
+                printCake(table);
+
+                // Check if all plates are full
+                if (isTableFull(table)) {
+                    cout << "Sorry, you failed. All plates are full." << endl;
+                    break;
+                }
+            } else {
                 cout << "The selected plate already has 6 elements. You cannot add more." << endl;
             }
-        }
-        else {
-            cout << "Invalid position. Please enter a valid row and column (0-2)." << endl;
+        } else {
+            cout << "Invalid position. Please enter a valid index (0-8)." << endl;
         }
     }
 
-    return 0;
+    return 0;
 }
